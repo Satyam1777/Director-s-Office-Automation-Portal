@@ -1,0 +1,24 @@
+# Python ki bekar files (Compiled files)
+__pycache__/
+*.pyc
+
+# Media Files (Images, PDFs jo user upload karta hai)
+media/
+*.jpg
+*.png
+*.pdf
+
+# Static files jo server par banti hain
+staticfiles/
+
+# Environment aur settings
+.env
+venv/
+env/
+
+# Database (Local data)
+db.sqlite3
+
+# Zip files (Ye upload nahi karni chahiye)
+*.zip
+*.rar
