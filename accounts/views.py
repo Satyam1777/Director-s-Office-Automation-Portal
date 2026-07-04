@@ -14,7 +14,7 @@ from certificates.services import SpamDetector , DocumentQualityChecker , Urgenc
 
 def student_login_view(request):
     if request.user.is_authenticated and not request.user.is_staff:
-        return redirect('student_dashboard')
+        return redirect('portal_gateway')
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
@@ -24,7 +24,7 @@ def student_login_view(request):
             if user is not None:
                 if not user.is_superuser and not user.is_staff:
                     login(request, user)
-                    return redirect('student_dashboard')
+                    return redirect('portal_gateway')
                 else:
                     messages.error(request, "Access denied. Please use the admin login page.")
             else:
@@ -152,6 +152,12 @@ def student_dashboard(request):
                 template_id = request.POST.get('certificate_template')
                 verification_doc = request.FILES.get('verification_document')
                 
+                # =========================================================
+                # ✅ ADDED: Capture the new Signed Application File
+                # =========================================================
+                signed_application_doc = request.FILES.get('signed_application')
+                # =========================================================
+                
                 # 2. Capture Anti-Spam Fields (Renamed variables for consistency)
                 purpose = request.POST.get('purpose', '')       # <-- Changed to 'purpose'
                 submitting_to = request.POST.get('submitting_to', '') # <-- Changed to 'submitting_to'
@@ -201,6 +207,22 @@ def student_dashboard(request):
                         messages.error(request, "📁 File too large! Max size is 2MB.")
                         return redirect('student_dashboard')
 
+                # =========================================================
+                # ✅ ADDED: SECURITY CHECK FOR SIGNED APPLICATION
+                # =========================================================
+                if signed_application_doc:
+                    import os
+                    ext = os.path.splitext(signed_application_doc.name)[1].lower()
+                    # Accepting PDF along with images for external applications
+                    if ext not in ['.pdf', '.jpg', '.jpeg', '.png']:
+                        messages.error(request, "❌ Invalid format! Only PDF, JPG, JPEG, or PNG are allowed for the signed application.")
+                        return redirect('student_dashboard')
+
+                    if signed_application_doc.size > (2 * 1024 * 1024):
+                        messages.error(request, "📁 Signed application file is too large! Max size is 2MB.")
+                        return redirect('student_dashboard')
+                # =========================================================
+
                 # ---------------------------------------------------
                 # 📸 STEP 2: COMPUTER VISION CHECK (Blurry Document?)
                 # ---------------------------------------------------
@@ -234,6 +256,13 @@ def student_dashboard(request):
                     # Filhal aapke dynamic_data logic ke hisaab se:
                     request_data=dynamic_data, 
                     verification_document=verification_doc,
+                    
+                    # =========================================================
+                    # ✅ ADDED: Save Signed Application to DB
+                    # =========================================================
+                    signed_application=signed_application_doc, 
+                    # =========================================================
+                    
                     purpose=purpose,              # <-- Correct variable
                     submitting_to=submitting_to,  # <-- Correct variable
                     is_self_declared=is_self_declared,
@@ -297,7 +326,7 @@ def student_dashboard(request):
 # --- Admin Views ---
 def admin_login_view(request):
     if request.user.is_authenticated and request.user.is_staff:
-        return redirect('admin_dashboard')
+        return redirect('portal_gateway')
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
@@ -307,7 +336,7 @@ def admin_login_view(request):
             if user is not None:
                 if user.is_superuser or user.is_staff:
                     login(request, user)
-                    return redirect('admin_dashboard')
+                    return redirect('portal_gateway')
                 else:
                     messages.error(request, "You are not authorized to access the admin panel.")
             else:
@@ -364,4 +393,64 @@ def admin_dashboard(request):
 
 def logout_view(request):
     logout(request)
+    return redirect('home')
+
+
+# ==========================================
+# 🚀 NEW GATEWAY & ROUTING LOGIC
+# ==========================================
+
+@login_required
+def portal_gateway(request):
+    """
+    Authentication ke baad sabse pehle ye page khulega.
+    Yahan user choose karega: Academic Portal vs UIET Media.
+    """
+    user = request.user
+    
+    # User ka role pata karo taaki hum page par dikha sakein
+    role = 'Guest'
+    if user.is_superuser:
+        role = 'Director'
+    elif hasattr(user, 'teacher_profile'):
+        role = 'Faculty'
+    elif hasattr(user, 'student_profile'):
+        role = 'Student'
+    
+    context = {
+        'user_name': user.first_name if user.first_name else user.username,
+        'role': role
+    }
+    return render(request, 'accounts/gateway.html', context)
+
+
+@login_required
+def dashboard_redirect(request):
+    """
+    Ye view 'Router' ka kaam karega.
+    Gateway se user jo bhi click karega (Academic/Social), ye usse sahi jagah bhejega.
+    Usage: /account/redirect/?mode=academic  OR  /account/redirect/?mode=social
+    """
+    mode = request.GET.get('mode', 'academic') # Default Academic hai
+    user = request.user
+
+    # 1. SOCIAL MODE (Media App)
+    if mode == 'social':
+        # Jab hum campus_media app banayenge, tab uska URL name yahan aayega
+        # Filhal ke liye main placeholder laga raha hu
+        return redirect('campus_feed') 
+
+    # 2. ACADEMIC MODE (Certificates & Work)
+    # Check karo user kaun hai aur uske dashboard par bhejo
+    if user.is_superuser:
+        return redirect('admin_dashboard')
+    
+    elif hasattr(user, 'teacher_profile'):
+        # Teacher Dashboard abhi banana baki hai, par link yahi hoga
+        return redirect('teacher_dashboard') 
+        
+    elif hasattr(user, 'student_profile'):
+        return redirect('student_dashboard')
+    
+    # Agar kuch samajh na aaye to Home bhej do
     return redirect('home')

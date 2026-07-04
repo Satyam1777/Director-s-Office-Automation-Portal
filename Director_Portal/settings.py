@@ -31,6 +31,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'accounts.apps.AccountsConfig',
     'certificates.apps.CertificatesConfig',
     'core.apps.CoreConfig',
@@ -40,7 +41,18 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    'campus_media.apps.CampusMediaConfig',
+    'channels',
 ]
+
+ASGI_APPLICATION = "Director_Portal.asgi.application"
+
+# In-Memory Channel Layer for development. For production, switch to Redis.
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -65,6 +77,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "campus_media.context_processors.unread_notifications",
             ],
         },
     },
@@ -154,7 +167,7 @@ EMAIL_USE_SSL = False
 EMAIL_HOST_USER = 'pathaksatyam633@gmail.com'  # <--- REPLACE THIS
 
 # The 16-character App Password you generated (NOT your login password)
-EMAIL_HOST_PASSWORD = 'vszs tquc cpaw ihqn'  # <--- REPLACE THIS
+EMAIL_HOST_PASSWORD = 'zarj ncfp lqfq ayba'  # <--- REPLACE THIS
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 

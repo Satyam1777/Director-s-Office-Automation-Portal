@@ -5,7 +5,7 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
+    
     dependencies = [
         ("certificates", "0008_certificaterequest_correction_reason_and_more"),
     ]

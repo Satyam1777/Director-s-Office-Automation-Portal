@@ -215,6 +215,63 @@ def populate_templates(apps, schema_editor):
             "required_fields": {**default_fields, "medium_of_instruction": True}
         },
         {
+            "name": "Fee Structure Certificate",
+            "description": "Details the fee structure for a student for a specific academic year.",
+            "body_template": """
+                <p style="text-align: justify; font-size: 15px; line-height: 1.6;">
+                    It is to certify that <strong>{{ student.full_name }}</strong> S/o / D/o <strong>{{ student.father_name }}</strong> (Roll No.: <strong>{{ student.enrollment_no }}</strong>) is a <strong>{{ year_in_words }} year</strong> bonafide student of Four Year B.Tech. <strong>{{ student.branch }}</strong> at the University Institute of Engineering & Technology, Chhatrapati Shahu Ji Maharaj University, Kanpur.
+                </p>
+
+                <p style="text-align: justify; font-size: 15px; margin-bottom: 20px;">
+                    The fee structure for the remaining academic duration starting from <strong>Year {{ requested_year }}</strong> is as follows:
+                </p>
+
+                <table border="1" style="width: 50%; border-collapse: collapse; text-align: center; font-size: 14px; margin-top: 15px; margin-bottom: 25px;">
+                    <thead>
+                        <tr style="background-color: #f0f0f0;">
+                            <th style="padding: 8px;">Academic Year</th>
+                            <th style="padding: 8px;">Total Fee Amount (Rs)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fee in fee_data %}
+                        <tr>
+                            <td style="padding: 8px;"><strong>{{ fee.year_label }}</strong></td>
+                            <td style="padding: 8px;">{{ fee.amount }}</td>
+                        </tr>
+                        {% endfor %}
+                        
+                        <tr style="background-color: #e8e8e8;">
+                            <td style="padding: 8px ;"><strong>Grand Total:</strong></td>
+                            <td style="padding: 8px; font-size: 14px;"><strong>Rs {{ grand_total }}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+<div style="margin-top: 15px; padding-top: 10px; font-size: 13px; line-height: 1.5;">
+    <p style="margin: 0; padding: 0;"><strong>Bank Account Details for RTGS / NEFT / Remittance:</strong></p>
+    
+    <p style="margin: 2px 0 0 0; padding: 0;">
+        &nbsp;&nbsp<strong>Account Name:</strong> Finance Officer of CSJM University in Kanpur
+    </p>
+    <p style="margin: 2px 0 0 0; padding: 0;">
+        &nbsp;&nbsp<strong>Bank Name:</strong> State Bank of India
+    </p>
+    <p style="margin: 2px 0 0 0; padding: 0;">
+        &nbsp;&nbsp<strong>Account Number:</strong> 00000040465185585
+    </p>
+    <p style="margin: 2px 0 0 0; padding: 0;">
+        &nbsp;&nbsp<strong>IFSC Code:</strong> SBIN0064085
+    </p>
+</div>
+
+                <p style="font-size: 12px; margin-top: 20px; color: #555; font-style: italic;">
+                    * Note: This is an estimated fee structure for bank loan purposes only.
+                </p>
+            """,
+            "required_fields": {**default_fields, "fee_year": True}
+        },
+        {
             "name": "Rank Certificate",
             "description": "Certifies the rank obtained by a student in their program among their batchmates.",
             "body_template": """
@@ -228,6 +285,7 @@ def populate_templates(apps, schema_editor):
             """,
             "required_fields": {**default_fields, "rank_achieved": True, "total_students": True}
         }
+        
     ]
     
     for template in templates_data:

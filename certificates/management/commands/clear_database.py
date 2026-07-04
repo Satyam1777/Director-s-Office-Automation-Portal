@@ -13,7 +13,7 @@ class Command(BaseCommand):
         req_count = CertificateRequest.objects.count()
         CertificateRequest.objects.all().delete()
         self.stdout.write(self.style.SUCCESS(f'Deleted {req_count} Certificate Requests (and associated Certificates).'))
-
+        
         # 2. Students Delete karein
         # (Ab student delete ho sakte hain kyunki requests hat gayi hain)
         std_count = Student.objects.count()

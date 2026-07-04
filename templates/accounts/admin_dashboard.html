@@ -72,35 +72,41 @@
             </div>
         </div>
 
-        <nav class="flex-1 overflow-y-auto py-6 px-3 space-y-1 dark-scroll">
-            <p class="px-4 text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Overview</p>
-            
-            <a href="{% url 'admin_dashboard' %}" class="nav-link active flex items-center px-4 py-3.5 rounded-r-xl font-medium hover:bg-slate-800 hover:text-white transition-all group">
-                <i class="fa-solid fa-gauge-high w-6 text-center text-lg mr-3 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-transform"></i>
-                <span class="tracking-wide">Dashboard</span>
-            </a>
-            
-            <a href="{% url 'manage_requests' %}" class="nav-link flex items-center justify-between px-4 py-3.5 rounded-r-xl font-medium hover:bg-slate-800 hover:text-white transition-all group">
-                <div class="flex items-center">
-                    <i class="fa-solid fa-file-contract w-6 text-center text-lg mr-3 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-transform"></i>
-                    <span class="tracking-wide">Requests</span>
-                </div>
-                {% if pending_requests > 0 %}
-                <span class="bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-lg shadow-indigo-500/30">
-                    {{ pending_requests }}
-                </span>
-                {% endif %}
-            </a>
+<nav class="flex-1 overflow-y-auto py-6 px-3 space-y-1 dark-scroll">
+    <p class="px-4 text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Overview</p>
+    
+    <a href="{% url 'admin_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %} flex items-center px-4 py-3.5 rounded-r-xl font-medium hover:bg-slate-800 hover:text-white transition-all group">
+        <i class="fa-solid fa-gauge-high w-6 text-center text-lg mr-3 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-transform"></i>
+        <span class="tracking-wide">Dashboard</span>
+    </a>
+    
+    <a href="{% url 'manage_requests' %}" class="nav-link {% if request.resolver_match.url_name == 'manage_requests' or 'edit_request' in request.resolver_match.url_name %}active{% endif %} flex items-center justify-between px-4 py-3.5 rounded-r-xl font-medium hover:bg-slate-800 hover:text-white transition-all group">
+        <div class="flex items-center">
+            <i class="fa-solid fa-file-contract w-6 text-center text-lg mr-3 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-transform"></i>
+            <span class="tracking-wide">Requests</span>
+        </div>
+        {% if pending_requests > 0 %}
+        <span class="bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-lg shadow-indigo-500/30">
+            {{ pending_requests }}
+        </span>
+        {% endif %}
+    </a>
 
-            <a href="{% url 'manage_students' %}" class="nav-link flex items-center px-4 py-3.5 rounded-r-xl font-medium hover:bg-slate-800 hover:text-white transition-all group">
-                <i class="fa-solid fa-users-gear w-6 text-center text-lg mr-3 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-transform"></i>
-                <span class="tracking-wide">Student Database</span>
-            </a>
-            <a href="{% url 'admin_help_desk' %}" class="nav-link flex items-center px-4 py-3.5 rounded-r-xl font-medium hover:bg-slate-800 hover:text-white transition-all group">
-    <i class="fa-solid fa-headset w-6 text-center text-lg mr-3 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-transform"></i>
-    <span class="tracking-wide">Help Desk</span>
-        </a>
-        </nav>
+    <a href="{% url 'manage_students' %}" class="nav-link {% if 'student' in request.path and 'help-desk' not in request.path %}active{% endif %} flex items-center px-4 py-3.5 rounded-r-xl font-medium hover:bg-slate-800 hover:text-white transition-all group">
+        <i class="fa-solid fa-users-gear w-6 text-center text-lg mr-3 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-transform"></i>
+        <span class="tracking-wide">Student Database</span>
+    </a>
+
+    <a href="{% url 'manage_teachers' %}" class="nav-link {% if 'manage-teachers' in request.path or 'teacher' in request.path %}active{% endif %} flex items-center px-4 py-3.5 rounded-r-xl font-medium hover:bg-slate-800 hover:text-white transition-all group">
+        <i class="fa-solid fa-chalkboard-user w-6 text-center text-lg mr-3 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-transform"></i>
+        <span class="tracking-wide">Manage Faculty</span>
+    </a>
+
+    <a href="{% url 'admin_help_desk' %}" class="nav-link {% if 'help-desk' in request.path %}active{% endif %} flex items-center px-4 py-3.5 rounded-r-xl font-medium hover:bg-slate-800 hover:text-white transition-all group">
+        <i class="fa-solid fa-headset w-6 text-center text-lg mr-3 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-transform"></i>
+        <span class="tracking-wide">Help Desk</span>
+    </a>
+</nav>
 
         <div class="p-4 border-t border-slate-800 bg-slate-850/50">
             <div class="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer group">

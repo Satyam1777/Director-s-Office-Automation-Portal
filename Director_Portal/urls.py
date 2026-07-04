@@ -28,6 +28,7 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('certificates/', include('certificates.urls')),
     path('verify/', verify_certificate_public, name='verify_certificate_public'),
+    path('social/', include('campus_media.urls')),
 ]
 
 # ==========================================================

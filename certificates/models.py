@@ -8,7 +8,7 @@ from django.dispatch import receiver
 import uuid
 import datetime
 from datetime import timedelta
-
+from datetime import date
 # ========================================================================
 # HELPER FUNCTIONS (for dynamic paths and defaults)
 # ========================================================================
@@ -124,7 +124,43 @@ class Student(models.Model):
         return f"{self.full_name} ({self.enrollment_no})"
     
     # --- Helper Properties (Required for Certificates) ---
-    
+    @property
+    def current_semester(self):
+        """
+        Calculates current semester based on registration dates.
+        Even Sem Starts: 5th Jan
+        Odd Sem Starts: 17th July
+        """
+        try:
+            # Batch "2022-2026" se start year 2022 nikala
+            start_year = int(str(self.academic_session).split('-')[0].strip())
+        except:
+            return 1  # Fallback
+
+        today = date.today()
+        current_year = today.year
+        
+        # Fixed Registration Dates
+        even_sem_start = date(current_year, 1, 5)   # 5th Jan
+        odd_sem_start = date(current_year, 7, 17)   # 17th July
+
+        years_passed = current_year - start_year
+
+        if today < even_sem_start:
+            # Case: 1 Jan - 4 Jan (Still previous Odd Sem logic)
+            # e.g., Jan 2 2023 for 2022 batch -> (1-1)*2 + 1 = Sem 1
+            sem = ((years_passed - 1) * 2) + 1
+            return max(1, sem)
+
+        elif even_sem_start <= today < odd_sem_start:
+            # Case: 5 Jan - 16 July (Even Semester)
+            # e.g., Feb 2023 for 2022 batch -> 1 year passed -> Sem 2
+            return max(1, years_passed * 2)
+
+        else:
+            # Case: After 17 July (New Odd Semester)
+            # e.g., Aug 2023 for 2022 batch -> 1 year passed -> Sem 3
+            return (years_passed * 2) + 1
     @property
     def parent_relation(self):
         """Returns 'D/o' for Female and 'S/o' for Male."""
@@ -281,6 +317,17 @@ class CertificateRequest(models.Model):
     
     verification_document = models.FileField(upload_to='verification_docs/', null=True, blank=True, help_text="Marksheet for verification")
     
+    # =========================================================
+    # ✅ ADDED FIELD: EXTERNALLY SIGNED APPLICATION
+    # =========================================================
+    signed_application = models.FileField(
+        upload_to='external_signed_applications/', 
+        null=True, 
+        blank=True, 
+        help_text="Application signed by the external authority where the document is to be submitted."
+    )
+    # =========================================================
+
     rejection_reason = models.TextField(blank=True, null=True)
     
 
@@ -355,7 +402,8 @@ class CertificateRequest(models.Model):
             return timezone.now().date() <= deadline
             
         return False
-
+    
+    
 # ======================================================================
 # 5. GENERATED CERTIFICATE MODEL
 # Stores the final, approved certificate details.
@@ -449,3 +497,90 @@ class HelpQuery(models.Model):
         return f"{self.student.full_name} - {self.subject} ({self.status})"
     
 
+# ======================================================================
+# 📚 ACADEMIC MANAGEMENT MODELS (New Tables)
+# ======================================================================
+
+class Teacher(models.Model):
+    """
+    Stores teacher details. 
+    Note: 'employee_id' logic (e.g., FAC001) will be handled during data import.
+    """
+    full_name = models.CharField(max_length=255, verbose_name="Faculty Name")
+    employee_id = models.CharField(max_length=50, unique=True, verbose_name="Employee ID")
+    email = models.EmailField(blank=True, null=True)
+    phone = models.CharField(max_length=15, blank=True, null=True)
+    department = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Audit timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Faculty Member"
+        verbose_name_plural = "Faculty Members"
+        ordering = ['full_name']
+
+    def __str__(self):
+        return f"{self.full_name} ({self.department})"
+
+
+class Subject(models.Model):
+    """
+    Stores Course/Subject Master data (e.g., MTH-S101).
+    """
+    course_code = models.CharField(max_length=50, unique=True, verbose_name="Course Code")
+    name = models.CharField(max_length=255, verbose_name="Subject Name")
+    credits = models.IntegerField(default=0, verbose_name="Credits")
+    is_practical = models.BooleanField(default=False, verbose_name="Is Practical?")
+
+    class Meta:
+        ordering = ['course_code']
+
+    def __str__(self):
+        return f"{self.course_code} - {self.name}"
+
+
+class CourseAllocation(models.Model):
+    """
+    Connects Teacher -> Subject -> Branch -> Semester.
+    Defines who teaches what, to whom, and when.
+    """
+    session = models.CharField(max_length=50, default="2025-26(1)", help_text="e.g. 2025-26(1) or 2024-25(2)")
+    branch = models.CharField(max_length=100, verbose_name="Branch") # Matches Student.branch
+    semester = models.IntegerField(verbose_name="Semester") # Matches Student.current_semester logic
+    
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    teacher = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        # Ensures one subject is taught by only one teacher per branch/sem/session
+        unique_together = ('session', 'branch', 'semester', 'subject')
+        verbose_name = "Course Allocation"
+        verbose_name_plural = "Course Allocations"
+
+    def __str__(self):
+        teacher_name = self.teacher.full_name if self.teacher else "Not Assigned"
+        return f"{self.branch} Sem-{self.semester}: {self.subject.course_code} ({teacher_name})"
+
+
+class AcademicRecord(models.Model):
+    """
+    Stores semester-wise performance (CPI/SGPA) for a student.
+    """
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='academic_records')
+    semester = models.IntegerField(verbose_name="Semester")
+    sgpa = models.FloatField(verbose_name="SGPA", default=0.0)
+    cpi = models.FloatField(verbose_name="CPI", default=0.0)
+    total_backlogs = models.IntegerField(default=0)
+    
+    # Optional: To track when this record was added
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['semester']
+        unique_together = ('student', 'semester') # A student has only one record per semester
+
+    def __str__(self):
+        # Note: Accessing student.enrollment_no requires the Student model to be loaded
+        return f"Sem {self.semester} (CPI: {self.cpi})"

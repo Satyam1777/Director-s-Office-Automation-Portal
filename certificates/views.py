@@ -22,6 +22,8 @@ from django.core.files.base import ContentFile
 from django.contrib.auth.decorators import login_required
 import json
 from .models import HelpQuery
+from django.db.models import Q
+from .models import Teacher
 # ==========================================================
 #           HELPER FUNCTION FOR PDF IMAGE PATHS
 # ==========================================================
@@ -110,6 +112,309 @@ import qrcode
 import base64
 from django.core.mail import EmailMessage
 
+# import hashlib
+# @user_passes_test(is_admin, login_url='admin_login')
+# def generate_certificate_pdf(request, request_id):
+#     # 1. Get the Request
+#     cert_request = get_object_or_404(CertificateRequest, id=request_id)
+#     student = cert_request.student
+#     template_name = cert_request.template.name
+    
+#     # 2. Update Status to APPROVED (Fixes UI button issue)
+#     if cert_request.status != 'APPROVED':
+#         cert_request.status = 'APPROVED'
+#         cert_request.save()
+
+#     # 3. Create/Get the DB Record
+#     generated_cert, created = GeneratedCertificate.objects.get_or_create(
+#         request=cert_request
+#     )
+
+#     # 4. Generate QR Code (Dynamic Link)
+#     verify_url = request.build_absolute_uri(f'/verify/?certificate_id={generated_cert.certificate_id}')
+#     qr = qrcode.QRCode(version=1, box_size=10, border=1)
+#     qr.add_data(verify_url)
+#     qr.make(fit=True)
+#     img = qr.make_image(fill='black', back_color='white')
+#     buffered = BytesIO()
+#     img.save(buffered, format="PNG")
+#     qr_base64 = base64.b64encode(buffered.getvalue()).decode()
+
+#     # 5. Prepare Context for PDF
+#     template_obj = CertificateTemplate.objects.get(name=template_name)
+#     body = template_obj.body_template
+
+#     context = {
+#         'student': student,
+#         'request': cert_request,
+#         'MEDIA_URL': settings.MEDIA_URL,
+#         'certificate': generated_cert,
+#     }
+    
+#     from django.template import Context, Template
+#     template = Template(body)
+#     rendered_body = template.render(Context(context))
+    
+#     pdf_template = get_template('certificates/pdf_template.html')
+#     final_context = {
+#         'rendered_body': rendered_body,
+#         'signatories': Signatory.objects.all(),
+#         'generated_certificate': generated_cert,
+#         'media_url': settings.MEDIA_URL,
+#         'settings': settings,
+#         'qr_code': qr_base64, 
+#     }
+    
+#     html = pdf_template.render(final_context)
+#     buffer = BytesIO()
+
+#     # 6. Load Fonts
+#     try:
+#         font_path = os.path.join(settings.STATIC_ROOT, 'fonts', 'TiroDevanagariHindi-Regular.ttf')
+#         pdfmetrics.registerFont(TTFont('TiroHindi', font_path))
+#     except Exception as e:
+#         print(f"ERROR loading font: {e}")
+    
+#     # 7. Generate PDF
+#     pisa_status = pisa.CreatePDF(html.encode('UTF-8'), dest=buffer, link_callback=link_callback)
+    
+#     if pisa_status.err:
+#         return HttpResponse('We had some errors <pre>' + html + '</pre>')
+        
+#     # 8. Save PDF and Hash to Database (✨ EDITED PART ✨)
+#     buffer.seek(0)
+#     pdf_content = buffer.getvalue()
+    
+#     # --- START: BLOCKCHAIN HASH GENERATION ---
+#     # PDF ka unique fingerprint (Hash) generate kar rahe hain
+#     pdf_hash = hashlib.sha256(pdf_content).hexdigest()
+#     generated_cert.certificate_hash = pdf_hash
+#     # --- END: BLOCKCHAIN HASH GENERATION ---
+
+#     filename = f"{student.enrollment_no}_{template_name.replace(' ', '_')}.pdf"
+    
+#     from django.core.files.base import ContentFile
+#     # save=True se model update hoga, aur humara hash bhi save ho jayega
+#     generated_cert.generated_pdf.save(filename, ContentFile(pdf_content), save=True)
+
+#     # 9. ✨ SMART EMAIL CONSTRUCTION & SENDING ✨
+#     try:
+#         # A. Construct Email Address (Format: enrollment + branch + @csjmu.ac.in)
+#         clean_branch = student.branch.lower().replace('-', '').replace(' ', '')
+#         clean_enrollment = student.enrollment_no.lower()
+        
+#         student_email = f"{clean_enrollment}{clean_branch}@csjmu.ac.in"
+        
+#         print(f"📧 Attempting to send certificate to: {student_email}")
+
+#         # B. Prepare Email Content
+#         subject = f"Certificate Approved: {template_name}"
+#         message_body = f"""
+#         Dear {student.full_name},
+
+#         Congratulations! Your request for a {template_name} has been approved.
+        
+#         Please find your official digital certificate attached to this email.
+        
+#         You can verify this document anytime using Certificate ID: {generated_cert.certificate_id}
+        
+#         Regards,
+#         Director Office
+#         University Institute of Engineering and Technology
+#         """
+        
+#         # C. Send Email
+#         email = EmailMessage(
+#             subject,
+#             message_body,
+#             settings.DEFAULT_FROM_EMAIL,
+#             [student_email], 
+#         )
+#         email.attach(filename, pdf_content, 'application/pdf')
+#         email.send(fail_silently=False)
+        
+#         # D. Success Feedback
+#         messages.success(request, f"Certificate generated and sent to {student_email}")
+
+#     except Exception as e:
+#         print(f"❌ EMAIL FAILED: {str(e)}")
+#         # We use 'warning' so the user knows PDF is generated but email failed
+#         messages.warning(request, f"Certificate generated, but email failed: {e}")
+
+#     # 10. ✨ REDIRECT BACK ✨
+#     return redirect('manage_requests')
+
+# import hashlib
+# @user_passes_test(is_admin, login_url='admin_login')
+# def generate_certificate_pdf(request, request_id):
+#     # 1. Get the Request
+#     cert_request = get_object_or_404(CertificateRequest, id=request_id)
+#     student = cert_request.student
+#     template_name = cert_request.template.name
+    
+#     # 2. Update Status to APPROVED (Fixes UI button issue)
+#     if cert_request.status != 'APPROVED':
+#         cert_request.status = 'APPROVED'
+#         cert_request.save()
+
+#     # 3. Create/Get the DB Record
+#     generated_cert, created = GeneratedCertificate.objects.get_or_create(
+#         request=cert_request
+#     )
+
+#     # 4. Generate QR Code (Dynamic Link)
+#     verify_url = request.build_absolute_uri(f'/verify/?certificate_id={generated_cert.certificate_id}')
+#     qr = qrcode.QRCode(version=1, box_size=10, border=1)
+#     qr.add_data(verify_url)
+#     qr.make(fit=True)
+#     img = qr.make_image(fill='black', back_color='white')
+#     buffered = BytesIO()
+#     img.save(buffered, format="PNG")
+#     qr_base64 = base64.b64encode(buffered.getvalue()).decode()
+
+#     # 5. Prepare Context for PDF
+#     template_obj = CertificateTemplate.objects.get(name=template_name)
+#     body = template_obj.body_template
+
+#     context = {
+#         'student': student,
+#         'request': cert_request,
+#         'MEDIA_URL': settings.MEDIA_URL,
+#         'certificate': generated_cert,
+#     }
+    
+#     # --- START: NEW FEE STRUCTURE LOGIC ADDED HERE ---
+#     year_words_map = {1: 'First', 2: 'Second', 3: 'Third', 4: 'Fourth'}
+#     year_in_words = year_words_map.get(student.current_year, str(student.current_year))
+
+#     fixed_fees = {
+#         1: 104200,
+#         2: 104200,
+#         3: 104200,
+#         4: 105400
+#     }
+
+#     fee_data = []
+#     grand_total = 0
+#     try:       # request_data ek dictionary/JSON hoti hai jisme extra fields aate hain
+#         requested_year = int(cert_request.request_data.get('fee_year', student.current_year))
+#     except (TypeError, ValueError, AttributeError):
+#         requested_year = student.current_year # Fallback agar koi error aaye
+
+#     if "Fee Structure" in template_name:
+#         for year in range(requested_year, 5):
+#             amount = fixed_fees.get(year, 0)
+#             if year == 1: suffix = "1st"
+#             elif year == 2: suffix = "2nd"
+#             elif year == 3: suffix = "3rd"
+#             else: suffix = "4th"
+            
+#             fee_data.append({
+#                 'year_label': f"{suffix} Year",
+#                 'amount': amount
+#             })
+#             grand_total += amount
+
+#     # Append to context
+#     context['year_in_words'] = year_in_words
+#     context['requested_year'] = requested_year
+#     context['fee_data'] = fee_data
+#     context['grand_total'] = grand_total
+#     # --- END: NEW FEE STRUCTURE LOGIC ---
+
+#     from django.template import Context, Template
+#     template = Template(body)
+#     rendered_body = template.render(Context(context))
+    
+#     pdf_template = get_template('certificates/pdf_template.html')
+#     final_context = {
+#         'rendered_body': rendered_body,
+#         'signatories': Signatory.objects.all(),
+#         'generated_certificate': generated_cert,
+#         'media_url': settings.MEDIA_URL,
+#         'settings': settings,
+#         'qr_code': qr_base64, 
+#     }
+    
+#     html = pdf_template.render(final_context)
+#     buffer = BytesIO()
+
+#     # 6. Load Fonts
+#     try:
+#         font_path = os.path.join(settings.STATIC_ROOT, 'fonts', 'TiroDevanagariHindi-Regular.ttf')
+#         pdfmetrics.registerFont(TTFont('TiroHindi', font_path))
+#     except Exception as e:
+#         print(f"ERROR loading font: {e}")
+    
+#     # 7. Generate PDF
+#     pisa_status = pisa.CreatePDF(html.encode('UTF-8'), dest=buffer, link_callback=link_callback)
+    
+#     if pisa_status.err:
+#         return HttpResponse('We had some errors <pre>' + html + '</pre>')
+        
+#     # 8. Save PDF and Hash to Database (✨ EDITED PART ✨)
+#     buffer.seek(0)
+#     pdf_content = buffer.getvalue()
+    
+#     # --- START: BLOCKCHAIN HASH GENERATION ---
+#     # PDF ka unique fingerprint (Hash) generate kar rahe hain
+#     pdf_hash = hashlib.sha256(pdf_content).hexdigest()
+#     generated_cert.certificate_hash = pdf_hash
+#     # --- END: BLOCKCHAIN HASH GENERATION ---
+
+#     filename = f"{student.enrollment_no}_{template_name.replace(' ', '_')}.pdf"
+    
+#     from django.core.files.base import ContentFile
+#     # save=True se model update hoga, aur humara hash bhi save ho jayega
+#     generated_cert.generated_pdf.save(filename, ContentFile(pdf_content), save=True)
+
+#     # 9. ✨ SMART EMAIL CONSTRUCTION & SENDING ✨
+#     try:
+#         # A. Construct Email Address (Format: enrollment + branch + @csjmu.ac.in)
+#         clean_branch = student.branch.lower().replace('-', '').replace(' ', '')
+#         clean_enrollment = student.enrollment_no.lower()
+        
+#         student_email = f"{clean_enrollment}{clean_branch}@csjmu.ac.in"
+        
+#         print(f"📧 Attempting to send certificate to: {student_email}")
+
+#         # B. Prepare Email Content
+#         subject = f"Certificate Approved: {template_name}"
+#         message_body = f"""
+#         Dear {student.full_name},
+
+#         Congratulations! Your request for a {template_name} has been approved.
+        
+#         Please find your official digital certificate attached to this email.
+        
+#         You can verify this document anytime using Certificate ID: {generated_cert.certificate_id}
+        
+#         Regards,
+#         Director Office
+#         University Institute of Engineering and Technology
+#         """
+        
+#         # C. Send Email
+#         email = EmailMessage(
+#             subject,
+#             message_body,
+#             settings.DEFAULT_FROM_EMAIL,
+#             [student_email], 
+#         )
+#         email.attach(filename, pdf_content, 'application/pdf')
+#         email.send(fail_silently=False)
+        
+#         # D. Success Feedback
+#         messages.success(request, f"Certificate generated and sent to {student_email}")
+
+#     except Exception as e:
+#         print(f"❌ EMAIL FAILED: {str(e)}")
+#         # We use 'warning' so the user knows PDF is generated but email failed
+#         messages.warning(request, f"Certificate generated, but email failed: {e}")
+
+#     # 10. ✨ REDIRECT BACK ✨
+#     return redirect('manage_requests')
+
 import hashlib
 @user_passes_test(is_admin, login_url='admin_login')
 def generate_certificate_pdf(request, request_id):
@@ -148,6 +453,42 @@ def generate_certificate_pdf(request, request_id):
         'MEDIA_URL': settings.MEDIA_URL,
         'certificate': generated_cert,
     }
+
+    # --- START: DYNAMIC FEE STRUCTURE LOGIC ---
+    try:
+        # academic_session format "2022-2026" se admission_year nikalna
+        admission_year = int(student.academic_session.split('-')[0])
+        current_date_year = 2026
+        current_year_val = (current_date_year - admission_year) + 1
+        current_year_val = max(1, min(4, current_year_val))
+    except:
+        current_year_val = 1
+
+    year_words_map = {1: 'First', 2: 'Second', 3: 'Third', 4: 'Fourth'}
+    year_in_words = year_words_map.get(current_year_val, str(current_year_val))
+
+    fixed_fees = {1: 104200, 2: 104200, 3: 104200, 4: 105400}
+    fee_data = []
+    grand_total = 0
+    
+    # Form se aaya hua fee_year lein, agar nahi hai toh calculated year lein
+    try:
+        requested_year = int(cert_request.request_data.get('fee_year', current_year_val))
+    except:
+        requested_year = current_year_val
+
+    if "Fee Structure" in template_name:
+        for year in range(requested_year, 5):
+            amount = fixed_fees.get(year, 0)
+            suffix = {1: "1st", 2: "2nd", 3: "3rd", 4: "4th"}.get(year, "")
+            fee_data.append({'year_label': f"{suffix} Year", 'amount': amount})
+            grand_total += amount
+
+    context['year_in_words'] = year_in_words
+    context['requested_year'] = requested_year
+    context['fee_data'] = fee_data
+    context['grand_total'] = grand_total
+    # --- END: DYNAMIC FEE STRUCTURE LOGIC ---
     
     from django.template import Context, Template
     template = Template(body)
@@ -179,12 +520,11 @@ def generate_certificate_pdf(request, request_id):
     if pisa_status.err:
         return HttpResponse('We had some errors <pre>' + html + '</pre>')
         
-    # 8. Save PDF and Hash to Database (✨ EDITED PART ✨)
+    # 8. Save PDF and Hash to Database
     buffer.seek(0)
     pdf_content = buffer.getvalue()
     
     # --- START: BLOCKCHAIN HASH GENERATION ---
-    # PDF ka unique fingerprint (Hash) generate kar rahe hain
     pdf_hash = hashlib.sha256(pdf_content).hexdigest()
     generated_cert.certificate_hash = pdf_hash
     # --- END: BLOCKCHAIN HASH GENERATION ---
@@ -192,12 +532,10 @@ def generate_certificate_pdf(request, request_id):
     filename = f"{student.enrollment_no}_{template_name.replace(' ', '_')}.pdf"
     
     from django.core.files.base import ContentFile
-    # save=True se model update hoga, aur humara hash bhi save ho jayega
     generated_cert.generated_pdf.save(filename, ContentFile(pdf_content), save=True)
 
     # 9. ✨ SMART EMAIL CONSTRUCTION & SENDING ✨
     try:
-        # A. Construct Email Address (Format: enrollment + branch + @csjmu.ac.in)
         clean_branch = student.branch.lower().replace('-', '').replace(' ', '')
         clean_enrollment = student.enrollment_no.lower()
         
@@ -205,7 +543,6 @@ def generate_certificate_pdf(request, request_id):
         
         print(f"📧 Attempting to send certificate to: {student_email}")
 
-        # B. Prepare Email Content
         subject = f"Certificate Approved: {template_name}"
         message_body = f"""
         Dear {student.full_name},
@@ -221,7 +558,6 @@ def generate_certificate_pdf(request, request_id):
         University Institute of Engineering and Technology
         """
         
-        # C. Send Email
         email = EmailMessage(
             subject,
             message_body,
@@ -231,12 +567,10 @@ def generate_certificate_pdf(request, request_id):
         email.attach(filename, pdf_content, 'application/pdf')
         email.send(fail_silently=False)
         
-        # D. Success Feedback
         messages.success(request, f"Certificate generated and sent to {student_email}")
 
     except Exception as e:
         print(f"❌ EMAIL FAILED: {str(e)}")
-        # We use 'warning' so the user knows PDF is generated but email failed
         messages.warning(request, f"Certificate generated, but email failed: {e}")
 
     # 10. ✨ REDIRECT BACK ✨
@@ -539,3 +873,100 @@ def edit_request_data(request, request_id):
 
     return render(request, 'certificates/edit_request.html', {'req': req})
 
+# ==========================================================
+#               TEACHER MANAGEMENT VIEWS
+# ==========================================================
+
+@user_passes_test(is_admin, login_url='admin_login')
+def manage_teachers_view(request):
+    """
+    Displays the Teacher Database with the same UI/UX as Student Database.
+    """
+    all_teachers = Teacher.objects.all().order_by('full_name')
+    context = {'teachers': all_teachers}
+    return render(request, 'certificates/manage_teachers.html', context)
+
+@user_passes_test(is_admin, login_url='admin_login')
+def add_teacher_view(request):
+    if request.method == 'POST':
+        employee_id = request.POST.get('employee_id')
+        
+        # Check for Duplicate Employee ID
+        if Teacher.objects.filter(employee_id=employee_id).exists():
+            messages.error(request, f"A faculty with Employee ID '{employee_id}' already exists.")
+            return render(request, 'certificates/add_teacher.html')
+
+        try:
+            Teacher.objects.create(
+                full_name=request.POST.get('full_name'),
+                employee_id=employee_id,
+                department=request.POST.get('department'),
+                email=request.POST.get('email'),
+                phone=request.POST.get('phone')
+            )
+            messages.success(request, f"Faculty Member '{request.POST.get('full_name')}' added successfully.")
+            return redirect('manage_teachers')
+        except Exception as e:
+            messages.error(request, f"Error adding teacher: {e}")
+
+    return render(request, 'certificates/add_teacher.html')
+
+@user_passes_test(is_admin, login_url='admin_login')
+def edit_teacher_view(request, teacher_id):
+    teacher = get_object_or_404(Teacher, id=teacher_id)
+    
+    if request.method == 'POST':
+        try:
+            teacher.full_name = request.POST.get('full_name')
+            # Employee ID usually shouldn't change, but if needed:
+            # teacher.employee_id = request.POST.get('employee_id') 
+            teacher.department = request.POST.get('department')
+            teacher.email = request.POST.get('email')
+            teacher.phone = request.POST.get('phone')
+            teacher.save()
+            
+            messages.success(request, f"Profile for {teacher.full_name} updated.")
+            return redirect('manage_teachers')
+        except Exception as e:
+            messages.error(request, f"Error updating profile: {e}")
+
+    return render(request, 'certificates/edit_teacher.html', {'teacher': teacher})
+
+@user_passes_test(is_admin, login_url='admin_login')
+def delete_teacher_view(request, teacher_id):
+    teacher = get_object_or_404(Teacher, id=teacher_id)
+    if request.method == 'POST': # Usually deletion is a POST request for safety
+        name = teacher.full_name
+        teacher.delete()
+        messages.info(request, f"Faculty '{name}' has been removed.")
+        return redirect('manage_teachers')
+    
+    # Fallback if accessed via GET (though linking via POST form is better)
+    return redirect('manage_teachers')
+
+from django.http import JsonResponse
+from django.core.mail import send_mass_mail # Bulk mail ke liye best
+
+def bulk_approve_requests(request):
+    if request.method == 'POST':
+        request_ids = request.POST.getlist('request_ids') # ['1', '2', '5', ...]
+        requests = CertificateRequest.objects.filter(id__in=request_ids, status='PENDING')
+        
+        messages_to_send = []
+        for req in requests:
+            # 1. Approve logic
+            req.status = 'APPROVED'
+            req.save()
+            
+            # 2. Certificate Generation (Aapka existing function call karein)
+            # generate_certificate_pdf(req) 
+            
+            # 3. Email prepare karein
+            subject = f"Certificate Approved: {req.template.name}"
+            message = f"Dear {req.student.full_name}, your request has been approved."
+            messages_to_send.append((subject, message, 'admin@uiet.ac.in', [req.student.email]))
+        
+        # 4. Mass email (ek baar mein saare mails)
+        send_mass_mail(messages_to_send, fail_silently=False)
+        
+        return JsonResponse({'status': 'success', 'message': f'{len(requests)} requests processed!'})
